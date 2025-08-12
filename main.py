@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+"""#!/usr/bin/env python3
+"""
 """
 Python Report Generator
 A comprehensive tool for CSV data analysis and professional PDF report generation
@@ -132,9 +133,22 @@ class DataAnalyzer:
             # Try to convert to datetime if possible
             if pd.api.types.is_object_dtype(self.cleaned_df[col]):
                 try:
-                    pd.to_datetime(self.cleaned_df[col], errors='raise')
-                    self.cleaned_df[col] = pd.to_datetime(self.cleaned_df[col], errors='coerce')
-                    print(f"  {col}: Converted to datetime")
+                    # Try multiple date formats to handle different CSV formats
+                    if col == 'Date':
+                        # Try DD-MM-YYYY format first, then MM-DD-YYYY, then YYYY-MM-DD
+                        try:
+                            self.cleaned_df[col] = pd.to_datetime(self.cleaned_df[col], format='%d-%m-%Y', errors='coerce')
+                        except:
+                            try:
+                                self.cleaned_df[col] = pd.to_datetime(self.cleaned_df[col], format='%m-%d-%Y', errors='coerce')
+                            except:
+                                self.cleaned_df[col] = pd.to_datetime(self.cleaned_df[col], errors='coerce')
+                        print(f"  {col}: Converted to datetime")
+                    else:
+                        # For other columns, use standard conversion
+                        pd.to_datetime(self.cleaned_df[col], errors='raise')
+                        self.cleaned_df[col] = pd.to_datetime(self.cleaned_df[col], errors='coerce')
+                        print(f"  {col}: Converted to datetime")
                 except:
                     pass
         
@@ -297,7 +311,25 @@ class DataVisualizer:
         
         # 1. Revenue vs Expenses trend
         if 'Date' in self.df.columns:
-            dates = pd.to_datetime(self.df['Date'])
+            # Check if Date column is already datetime, if not try to convert it
+            if not pd.api.types.is_datetime64_any_dtype(self.df['Date']):
+                try:
+                    # Try multiple date formats
+                    try:
+                        dates = pd.to_datetime(self.df['Date'], format='%d-%m-%Y')
+                    except:
+                        try:
+                            dates = pd.to_datetime(self.df['Date'], format='%m-%d-%Y')
+                        except:
+                            dates = pd.to_datetime(self.df['Date'], errors='coerce')
+                except:
+                    # If all else fails, use index as x-axis
+                    dates = range(len(self.df))
+                    ax1.set_xlabel('Day Index')
+            else:
+                dates = self.df['Date']
+                ax1.set_xlabel('Date')
+            
             ax1.plot(dates, self.df['Revenue'], label='Revenue', linewidth=2, color='green', marker='o')
             ax1.plot(dates, self.df['Expenses'], label='Expenses', linewidth=2, color='red', marker='s')
             ax1.fill_between(dates, self.df['Revenue'], self.df['Expenses'], 
@@ -307,11 +339,11 @@ class DataVisualizer:
                            where=(self.df['Revenue'] <= self.df['Expenses']), 
                            alpha=0.3, color='red', label='Loss Zone')
             ax1.set_title('Revenue vs Expenses Trend')
-            ax1.set_xlabel('Date')
             ax1.set_ylabel('Amount ($)')
             ax1.legend()
             ax1.grid(True, alpha=0.3)
-            ax1.tick_params(axis='x', rotation=45)
+            if pd.api.types.is_datetime64_any_dtype(dates):
+                ax1.tick_params(axis='x', rotation=45)
         
         # 2. Profit margin over time
         if 'Profit_Margin' in self.df.columns:
@@ -320,11 +352,15 @@ class DataVisualizer:
             ax2.axhline(y=profit_margin.mean(), color='red', linestyle='--', 
                        label=f'Average: {profit_margin.mean():.1f}%')
             ax2.set_title('Profit Margin Trend')
-            ax2.set_xlabel('Date')
+            if pd.api.types.is_datetime64_any_dtype(dates):
+                ax2.set_xlabel('Date')
+            else:
+                ax2.set_xlabel('Day Index')
             ax2.set_ylabel('Profit Margin (%)')
             ax2.legend()
             ax2.grid(True, alpha=0.3)
-            ax2.tick_params(axis='x', rotation=45)
+            if pd.api.types.is_datetime64_any_dtype(dates):
+                ax2.tick_params(axis='x', rotation=45)
         
         # 3. Cash flow analysis
         if 'Cash_Flow' in self.df.columns:
