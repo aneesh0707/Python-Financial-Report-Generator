@@ -552,15 +552,44 @@ class ReportGenerator:
             textColor=colors.darkgreen
         )
         
+        # Custom style for bullet points with better spacing
+        bullet_style = ParagraphStyle(
+            'CustomBullet',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=6,
+            spaceBefore=6,
+            leftIndent=20,
+            textColor=colors.black
+        )
+        
+        # Custom style for numbered lists
+        numbered_style = ParagraphStyle(
+            'CustomNumbered',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=8,
+            spaceBefore=8,
+            leftIndent=25,
+            textColor=colors.black
+        )
+        
         # Title page
         story.append(Paragraph("Financial Analysis Report", title_style))
         story.append(Spacer(1, 20))
-        story.append(Paragraph(dedent(f"""
-            Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
-        """), styles['Normal']))
+        story.append(Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal']))
         story.append(Spacer(1, 40))
         story.append(Paragraph("Executive Summary", heading_style))
-        story.append(Paragraph(dedent(self._generate_executive_summary()), styles['Normal']))
+        total_rows = self.data_info['shape'][0]
+        total_cols = self.data_info['shape'][1]
+        
+        story.append(Paragraph(f"This comprehensive financial analysis report presents a detailed examination of financial performance data spanning {total_rows:,} daily records across {total_cols} key financial metrics.", styles['Normal']))
+        story.append(Spacer(1, 8))
+        story.append(Paragraph("The analysis reveals critical insights into revenue generation, expense management, profitability trends, and overall financial health indicators.", styles['Normal']))
+        story.append(Spacer(1, 8))
+        story.append(Paragraph("Key financial highlights include revenue performance analysis, expense optimization opportunities, cash flow management insights, and investment return assessments.", styles['Normal']))
+        story.append(Spacer(1, 8))
+        story.append(Paragraph("The report provides actionable recommendations for improving financial performance and strategic decision-making based on data-driven insights.", styles['Normal']))
         story.append(PageBreak())
         
         # Table of Contents
@@ -575,30 +604,85 @@ class ReportGenerator:
         ]
         
         for item in toc_items:
-            story.append(Paragraph(f"• {item}", styles['Normal']))
+            story.append(Paragraph(f"• {item}", bullet_style))
         story.append(PageBreak())
         
         # Financial Performance Overview Section
         story.append(Paragraph("1. Financial Performance Overview", heading_style))
-        story.append(Paragraph(dedent(self._generate_financial_overview()), styles['Normal']))
+        story.append(Paragraph("Financial Performance Overview:", subheading_style))
+        
+        if self.financial_metrics:
+            if 'overall' in self.financial_metrics:
+                overall = self.financial_metrics['overall']
+                story.append(Paragraph("Overall Performance:", numbered_style))
+                story.append(Paragraph(f"• Total Revenue: ${overall['total_revenue']:,.2f}", bullet_style))
+                story.append(Paragraph(f"• Total Expenses: ${overall['total_expenses']:,.2f}", bullet_style))
+                story.append(Paragraph(f"• Total Profit: ${overall['total_profit']:,.2f}", bullet_style))
+                story.append(Paragraph(f"• Average Profit Margin: {overall['avg_profit_margin']}%", bullet_style))
+                if overall['avg_roi']:
+                    story.append(Paragraph(f"• Average ROI: {overall['avg_roi']:.2f}%", bullet_style))
+                story.append(Spacer(1, 8))
+            
+            if 'monthly_summary' in self.financial_metrics:
+                story.append(Paragraph("Monthly Performance Summary:", numbered_style))
+                monthly = self.financial_metrics['monthly_summary']
+                for month, data in monthly.iterrows():
+                    story.append(Paragraph(f"  {month}:", numbered_style))
+                    story.append(Paragraph(f"    • Revenue: ${data['Revenue']:,.2f}", bullet_style))
+                    story.append(Paragraph(f"    • Profit: ${data['Profit']:,.2f}", bullet_style))
+                    story.append(Paragraph(f"    • Profit Margin: {data['Profit_Margin']}%", bullet_style))
+                    story.append(Paragraph(f"    • Cash Flow: ${data['Cash_Flow']:,.2f}", bullet_style))
+                    story.append(Spacer(1, 4))
+        else:
+            story.append(Paragraph("Financial metrics analysis not available.", styles['Normal']))
+        
         story.append(Spacer(1, 20))
         
         # Data Quality Assessment
         story.append(Paragraph("2. Data Quality Assessment", heading_style))
-        story.append(Paragraph(dedent(self._generate_data_quality_section()), styles['Normal']))
+        story.append(Paragraph("Data Quality Assessment:", subheading_style))
+        
+        null_info = self.data_info['null_counts']
+        total_rows = self.data_info['shape'][0]
+        
+        for col, null_count in null_info.items():
+            if null_count > 0:
+                null_pct = (null_count / total_rows) * 100
+                story.append(Paragraph(f"• {col}: {null_count:,} missing values ({null_pct:.1f}%)", bullet_style))
+            else:
+                story.append(Paragraph(f"• {col}: No missing values ✓", bullet_style))
+        
+        overall_completeness = ((total_rows * len(null_info) - sum(null_info.values())) / (total_rows * len(null_info)) * 100)
+        story.append(Spacer(1, 8))
+        story.append(Paragraph(f"Overall data completeness: {overall_completeness:.1f}%", numbered_style))
+        
         story.append(Spacer(1, 20))
         
         # Financial Metrics Analysis
         story.append(Paragraph("3. Financial Metrics Analysis", heading_style))
-        story.append(Paragraph(dedent(self._generate_financial_metrics_section()), styles['Normal']))
+        story.append(Paragraph("Financial Metrics Analysis:", subheading_style))
+        story.append(Paragraph("This section provides a comprehensive analysis of key financial ratios and metrics that are essential for understanding the organization's financial health and performance.", styles['Normal']))
+        story.append(Spacer(1, 12))
+        
+        story.append(Paragraph("Key Financial Ratios Calculated:", numbered_style))
+        story.append(Paragraph("• Debt-to-Equity Ratio: Measures financial leverage and risk", bullet_style))
+        story.append(Paragraph("• Current Ratio: Indicates short-term liquidity and ability to meet obligations", bullet_style))
+        story.append(Paragraph("• Return on Assets (ROA): Shows efficiency in using assets to generate profits", bullet_style))
+        story.append(Paragraph("• Cash Flow Margin: Demonstrates ability to convert revenue to cash", bullet_style))
+        story.append(Paragraph("• Expense Ratio: Shows cost structure efficiency relative to revenue", bullet_style))
+        story.append(Spacer(1, 8))
+        
+        story.append(Paragraph("These metrics provide critical insights into:", numbered_style))
+        story.append(Paragraph("• Financial stability and risk levels", bullet_style))
+        story.append(Paragraph("• Operational efficiency and profitability", bullet_style))
+        story.append(Paragraph("• Cash flow management effectiveness", bullet_style))
+        story.append(Paragraph("• Investment performance and returns", bullet_style))
+        
         story.append(Spacer(1, 20))
         
         # EDA Section
         story.append(Paragraph("4. Key Financial Insights and Visualizations", heading_style))
-        story.append(Paragraph(dedent("""
-            The following visualizations provide comprehensive insights into financial performance,
-            trends, and key metrics.
-        """), styles['Normal']))
+        story.append(Paragraph("The following visualizations provide comprehensive insights into financial performance, trends, and key metrics.", styles['Normal']))
         story.append(Spacer(1, 20))
         
         # Add all figures
@@ -633,18 +717,92 @@ class ReportGenerator:
             fig_block.append(Image(img_path, width=target_w, height=target_h))
             fig_block.append(Spacer(1, 8))
             interpretation = self._get_financial_plot_interpretation(plot_type, title)
-            fig_block.append(Paragraph(dedent(interpretation), styles['Normal']))
+            fig_block.append(Paragraph(interpretation, styles['Normal']))
             fig_block.append(Spacer(1, 16))
             story.append(KeepTogether(fig_block))
         
         # Risk Assessment Section
         story.append(Paragraph("5. Risk Assessment", heading_style))
-        story.append(Paragraph(dedent(self._generate_risk_assessment()), styles['Normal']))
+        story.append(Paragraph("Financial Risk Assessment:", subheading_style))
+        story.append(Paragraph("Based on the comprehensive analysis of financial data, the following risk factors have been identified and assessed:", styles['Normal']))
+        story.append(Spacer(1, 12))
+        
+        # Risk items with better formatting
+        risk_items = [
+            ("1. Liquidity Risk:", [
+                "• Current ratio analysis indicates short-term financial strength",
+                "• Cash flow patterns reveal operational cash generation capability", 
+                "• Recommendations for maintaining adequate working capital"
+            ]),
+            ("2. Leverage Risk:", [
+                "• Debt-to-equity ratios indicate financial leverage levels",
+                "• Assessment of debt service capability",
+                "• Recommendations for optimal capital structure"
+            ]),
+            ("3. Operational Risk:", [
+                "• Expense ratio analysis reveals cost structure efficiency",
+                "• Profit margin trends indicate operational performance",
+                "• Recommendations for cost optimization and efficiency improvements"
+            ]),
+            ("4. Investment Risk:", [
+                "• ROI analysis shows investment performance",
+                "• Investment concentration and diversification assessment",
+                "• Recommendations for portfolio optimization"
+            ])
+        ]
+        
+        for risk_title, risk_points in risk_items:
+            story.append(Paragraph(risk_title, numbered_style))
+            for point in risk_points:
+                # Remove the bullet character from the point text since we're using custom styling
+                clean_point = point.replace('• ', '')
+                story.append(Paragraph(f"• {clean_point}", bullet_style))
+            story.append(Spacer(1, 8))
+        
         story.append(Spacer(1, 20))
         
         # Strategic Recommendations Section
         story.append(Paragraph("6. Strategic Recommendations", heading_style))
-        story.append(Paragraph(dedent(self._generate_strategic_recommendations()), styles['Normal']))
+        story.append(Paragraph("Strategic Financial Recommendations:", subheading_style))
+        story.append(Paragraph("Based on the comprehensive financial analysis conducted, the following strategic recommendations are provided:", styles['Normal']))
+        story.append(Spacer(1, 12))
+        
+        # Recommendation items with better formatting
+        rec_items = [
+            ("1. Financial Performance Optimization:", [
+                "• Implement cost control measures based on expense ratio analysis",
+                "• Optimize pricing strategies to improve profit margins",
+                "• Enhance cash flow management through improved working capital practices"
+            ]),
+            ("2. Risk Management Strategies:", [
+                "• Maintain optimal debt-to-equity ratios for financial stability",
+                "• Diversify investment portfolio to reduce concentration risk",
+                "• Implement robust cash flow forecasting and monitoring systems"
+            ]),
+            ("3. Growth and Investment Opportunities:", [
+                "• Identify high-ROI investment opportunities based on performance analysis",
+                "• Develop strategic initiatives to improve return on assets",
+                "• Consider expansion opportunities in high-margin business areas"
+            ]),
+            ("4. Operational Excellence:", [
+                "• Streamline operational processes to improve efficiency ratios",
+                "• Implement data-driven decision-making frameworks",
+                "• Develop key performance indicators for continuous monitoring"
+            ]),
+            ("5. Long-term Financial Planning:", [
+                "• Establish sustainable growth targets based on historical performance",
+                "• Develop comprehensive financial forecasting models",
+                "• Implement regular financial health assessments and reporting"
+            ])
+        ]
+        
+        for rec_title, rec_points in rec_items:
+            story.append(Paragraph(rec_title, numbered_style))
+            for point in rec_points:
+                # Remove the bullet character from the point text since we're using custom styling
+                clean_point = point.replace('• ', '')
+                story.append(Paragraph(f"• {clean_point}", bullet_style))
+            story.append(Spacer(1, 8))
         
         # Build PDF
         doc.build(story)
